@@ -27,6 +27,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Signature;
+import java.util.Arrays;
 import java.util.Base64;
 
 import javax.crypto.Cipher;
@@ -39,6 +40,9 @@ public class MainActivity extends AppCompatActivity {
 
     private SecretKey secretKey;
     private TextView textView;
+    private SecretKeySpec secretKeySpec;
+    private byte[] key;
+    private static String SECRET_KEY = "DEVELOPER";
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
@@ -153,45 +157,59 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     private void messageDigestEncrypt(String text){
         try {
-            byte[] message = text.getBytes(StandardCharsets.UTF_8);
-            MessageDigest messageDigest= MessageDigest.getInstance("SHA-256");
-            byte[] digest = messageDigest.digest(message);
 
-            StringBuilder stringBuilder=new StringBuilder();
-            for(int i=0;i<digest.length;i++){
-                stringBuilder.append((char)digest[i]);
-            }
-
-            textView.append("\n MessageDigest---- "+stringBuilder);
-
-            messageDigestDcrypt(digest);
+        String encryptStr = encryptMessageDigest(text,SECRET_KEY);
+        textView.append("\n encryptMessageDigest : "+encryptStr);
+        String decryptStr = decryptMessageDigest(encryptStr,SECRET_KEY);
+        textView.append("\n decryptMessageDigest: "+decryptStr);
 
         }catch (Exception e){
 
         }
     }
 
-    private void  messageDigestDcrypt(byte[] digestEncrypt ){
+  // MessageDigest start
+    private void setSecretKeyForMessageDigest(String secretKey){
         try {
-            MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-            messageDigest.update(digestEncrypt);
-            byte[] data = messageDigest.digest();
-
-            StringBuilder stringBuilder=new StringBuilder();
-            for(int i=0;i<data.length;i++){
-                stringBuilder.append((char)data[i]);
-            }
-
-            textView.append("\n"+stringBuilder+" ----MessageDigest");
-
-        }catch (Exception e ){
+            MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
+            key = secretKey.getBytes(StandardCharsets.UTF_8);
+            key = messageDigest.digest(key);
+            key = Arrays.copyOf(key,16);
+            secretKeySpec = new SecretKeySpec(key,"AES");
+        }catch (Exception e){
 
         }
+    }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private String encryptMessageDigest(String message, String secret){
+        try {
+            setSecretKeyForMessageDigest(secret);
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.ENCRYPT_MODE,secretKeySpec);
+            return Base64.getEncoder().encodeToString(cipher.doFinal(message.getBytes(StandardCharsets.UTF_8)));
+        }catch (Exception e){
+            return  e.getMessage();
+        }
 
     }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private String decryptMessageDigest(String data, String secret){
+        try {
+            setSecretKeyForMessageDigest(secret);
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.DECRYPT_MODE,secretKeySpec);
+            return  new String(cipher.doFinal(Base64.getDecoder().decode(data)));
+
+        }catch (Exception e){
+            return  e.getMessage();
+        }
+    }
+//MessageDigest end
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     private void writeEncryptFile(){
@@ -262,7 +280,6 @@ public class MainActivity extends AppCompatActivity {
 
             textView.append("\n Mac-----"+hash);
 
-
             generateHMAC(secret,result);
 
         }catch (Exception e){
@@ -278,8 +295,6 @@ public class MainActivity extends AppCompatActivity {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(secretKeySpec);
             byte[] result = mac.doFinal(resultdata);
-
-
 
             textView.append("\n"+result+" ------Mac");
 
